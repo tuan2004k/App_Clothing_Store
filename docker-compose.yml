@@ -1,0 +1,19 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}  # Chỉ cần dùng biến này cho root user
+      MYSQL_DATABASE: ${DB_NAME}
+
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASS}"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+volumes:
+  mysql-data:
+    driver: local     
