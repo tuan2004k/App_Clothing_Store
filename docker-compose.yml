@@ -1,19 +1,22 @@
+version: '3.8'
 services:
-  mysql:
-    image: mysql:8.0
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASS}  # Chỉ cần dùng biến này cho root user
-      MYSQL_DATABASE: ${DB_NAME}
-
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - PORT=${PORT}
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASS}"]
-      interval: 5s
-      timeout: 10s
-      retries: 10
-    command: 
-      - --default-authentication-plugin=mysql_native_password
-volumes:
-  mysql-data:
-    driver: local     
+      - .:/app
+      - /app/node_modules
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

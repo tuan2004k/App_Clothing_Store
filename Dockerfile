@@ -1,23 +1,19 @@
-# Sử dụng image Node.js phiên bản LTS
-FROM node:18
+FROM node:18-alpine
 
-# Tạo thư mục làm việc
+# Tạo thư mục làm việc trong container
 WORKDIR /app
 
-# Copy package.json và package-lock.json
+# Copy package.json và package-lock.json để cài đặt dependencies
 COPY package*.json ./
 
 # Cài đặt dependencies
 RUN npm install
 
-# Copy toàn bộ source code
+# Copy toàn bộ mã nguồn vào container
 COPY . .
 
-# Build frontend (nếu cần)
-# RUN npm run build
-
-# Expose port mà ứng dụng chạy (thường là 3000 hoặc 5000)
-EXPOSE 3000
+# Mở cổng mà ứng dụng sẽ chạy
+EXPOSE 5000
 
 # Câu lệnh khởi chạy ứng dụng
 CMD ["npm", "start"]

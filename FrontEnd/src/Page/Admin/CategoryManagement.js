@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, Button, FlatList, Alert, StyleSheet } from "react-native";
 import {
-  getAllcategory,
+  getAllCategories,
   addCategory,
   deleteCategory,
   updateCategory,
@@ -21,7 +21,7 @@ const CategoryManagement = () => {
 
   const fetchCategories = async () => {
     try {
-      const data = await getAllcategory();
+      const data = await getAllCategories();
       setCategories(data);
     } catch (error) {
       Alert.alert("Lỗi", error.message);

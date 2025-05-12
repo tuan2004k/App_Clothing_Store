@@ -13,8 +13,8 @@ const ProductManagement = () => {
     loading,
     searchQuery,
     handleSearch,
-    handleSave,
     handleDelete,
+    handleEdit,
   } = useProductManagement();
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -22,7 +22,12 @@ const ProductManagement = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [productToDelete, setProductToDelete] = useState(null);
 
-  const openModal = (product = null) => {
+  const openAddModal = () => {
+    setEditingProduct(null);
+    setModalVisible(true);
+  };
+
+  const openEditModal = (product) => {
     setEditingProduct(product);
     setModalVisible(true);
   };
@@ -32,6 +37,20 @@ const ProductManagement = () => {
     setDeleteModalVisible(true);
   };
 
+  const handleModalSave = (productData, callback) => {
+    if (editingProduct) {
+      handleEdit(editingProduct.MaSanPham, productData, () => {
+        setModalVisible(false);
+        callback?.();
+      });
+    } else {
+      // TODO: Gọi hàm thêm sản phẩm ở đây nếu có
+      setModalVisible(false);
+      callback?.();
+    }
+  };
+
+
   return (
     <View style={styles.container}>
       <SearchBar
@@ -39,19 +58,19 @@ const ProductManagement = () => {
         searchQuery={searchQuery}
         onSearch={handleSearch}
       />
-      <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
+      <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
         <Text style={styles.addButtonText}>➕ Thêm Sản Phẩm</Text>
       </TouchableOpacity>
       <ProductList
         products={displayedProducts}
         loading={loading}
-        onEdit={openModal}
+        onEdit={openEditModal}
         onDelete={openDeleteModal}
       />
       <ProductModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        onSave={handleSave}
+        onSave={handleModalSave}
         editingProduct={editingProduct}
       />
       <DeleteConfirmationModal

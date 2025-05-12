@@ -1,27 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Modal, FlatList, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import styles from '../../styles/ProductManagementStyles';
 import { addProduct, updateProduct, addProductDetail } from '../../API/apiproduct';
+import { getAllCategories } from '../../API/apicategory';
 
 const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
   const [name, setName] = useState(editingProduct?.Ten || '');
   const [description, setDescription] = useState(editingProduct?.MoTa || '');
   const [price, setPrice] = useState(editingProduct?.Gia?.toString() || '');
   const [quantity, setQuantity] = useState(editingProduct?.SoLuong?.toString() || '');
-  const [image, setImage] = useState(editingProduct?.HinhAnh || ''); // Lưu chuỗi base64 hoặc URL
+  const [image, setImage] = useState(editingProduct?.HinhAnh || '');
   const [categoryCode, setCategoryCode] = useState(editingProduct?.MaDanhMuc?.toString() || '');
   const [variants, setVariants] = useState(editingProduct?.ChiTietSanPham || []);
   const [newVariant, setNewVariant] = useState({ Size: '', MauSac: '', Gia: '', SoLuong: '' });
+  const [categories, setCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+  const sizeOptions = ['S', 'M', 'L', 'XL'];
+  const colorOptions = ['Đỏ', 'Xanh', 'Vàng', 'Đen', 'Trắng'];
+
+  const defaultCategories = [
+    { MaDanhMuc: '1', TenDanhMuc: 'Quần áo' },
+    { MaDanhMuc: '2', TenDanhMuc: 'Giày dép' },
+    { MaDanhMuc: '3', TenDanhMuc: 'Phụ kiện' },
+  ];
 
   // Yêu cầu quyền truy cập thư viện ảnh
   useEffect(() => {
-    (async () => {
+    const requestPermissions = async () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Lỗi', 'Cần cấp quyền truy cập thư viện ảnh để chọn hình ảnh.');
       }
-    })();
+    };
+    requestPermissions();
+  }, []);
+
+  // Lấy danh sách danh mục
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const data = await getAllCategories();
+        console.log('Dữ liệu danh mục từ API:', data);
+        const mappedData = Array.isArray(data)
+          ? data.map(item => ({
+            MaDanhMuc: item.id || item.MaDanhMuc || item.categoryId || '',
+            Ten: item.name || item.Ten || item.categoryName || 'Không xác định',
+          })).filter(item => item.MaDanhMuc && item.Ten)
+          : defaultCategories;
+        setCategories(mappedData.length > 0 ? mappedData : defaultCategories);
+      } catch (error) {
+        console.error('Lỗi khi lấy danh mục:', error);
+        Alert.alert('Thông báo', 'Không thể tải danh sách danh mục. Sử dụng danh sách mặc định.');
+        setCategories(defaultCategories);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+    fetchCategories();
   }, []);
 
   const chooseImage = async () => {
@@ -30,15 +69,26 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.5, // Giảm chất lượng để chuỗi base64 không quá lớn
-        base64: true, // Lấy dữ liệu base64
+        quality: 0.5,
+        base64: true,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const base64 = result.assets[0].base64;
-        const imageData = `data:image/jpeg;base64,${base64}`;
-        setImage(imageData); // Lưu chuỗi base64 để hiển thị và gửi API
-      } else if (result.canceled) {
+      if (!result.canceled) {
+        if (result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          if (asset.base64) {
+            const imageData = `data:image/jpeg;base64,${asset.base64}`;
+            setImage(imageData);
+            console.log('Ảnh đã chọn (base64):', imageData.substring(0, 50) + '...');
+          } else {
+            console.log('Không lấy được base64 từ ảnh:', asset);
+            Alert.alert('Lỗi', 'Không thể lấy dữ liệu ảnh. Vui lòng thử lại.');
+          }
+        } else {
+          console.log('Không có assets trong kết quả:', result);
+          Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+        }
+      } else {
         console.log('Người dùng đã hủy chọn ảnh');
       }
     } catch (error) {
@@ -52,13 +102,12 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
       setVariants([...variants, { ...newVariant, MaChiTietSanPham: `temp_${Date.now()}` }]);
       setNewVariant({ Size: '', MauSac: '', Gia: '', SoLuong: '' });
     } else {
-      Alert.alert('Thông báo', 'Vui lòng điền đầy đủ thông tin biến thể.');
+      Alert.alert('Thông báo', 'Vui lòng chọn đầy đủ thông tin biến thể.');
     }
   };
 
-  const handleSave = async () => {
+  const handleModalSave = async () => {
     try {
-      // Kiểm tra dữ liệu đầu vào
       if (!name || !price || !quantity || !categoryCode) {
         Alert.alert('Thông báo', 'Vui lòng điền đầy đủ thông tin sản phẩm.');
         return;
@@ -70,8 +119,14 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
         Gia: parseFloat(price),
         SoLuong: parseInt(quantity),
         MaDanhMuc: categoryCode,
-        HinhAnh: image || '', // Gửi chuỗi base64 hoặc chuỗi rỗng nếu không có ảnh
+        HinhAnh: image || '',
+        ChiTietSanPham: variants,
       };
+
+      console.log('Dữ liệu gửi đi:', {
+        ...productData,
+        HinhAnh: productData.HinhAnh ? productData.HinhAnh.substring(0, 50) + '...' : '',
+      });
 
       let product;
       if (editingProduct) {
@@ -80,7 +135,6 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
         product = await addProduct(productData);
       }
 
-      // Thêm các biến thể
       for (const variant of variants) {
         if (variant.MaChiTietSanPham.toString().startsWith('temp')) {
           await addProductDetail({
@@ -93,11 +147,35 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
         }
       }
 
-      onSave(productData, editingProduct, onClose);
+      onSave({ ...product, ChiTietSanPham: variants }, editingProduct, onClose);
     } catch (error) {
       console.error('Lỗi khi lưu sản phẩm:', error);
       Alert.alert('Lỗi', 'Không thể lưu sản phẩm. Vui lòng thử lại.');
     }
+  };
+
+  const retryFetchCategories = () => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const data = await getAllCategories();
+        console.log('Dữ liệu danh mục từ API (retry):', data);
+        const mappedData = Array.isArray(data)
+          ? data.map(item => ({
+            MaDanhMuc: item.id || item.MaDanhMuc || item.categoryId || '',
+            TenDanhMuc: item.name || item.Ten || item.categoryName || 'Không xác định',
+          })).filter(item => item.MaDanhMuc && item.Ten)
+          : defaultCategories;
+        setCategories(mappedData.length > 0 ? mappedData : defaultCategories);
+      } catch (error) {
+        console.error('Lỗi khi lấy danh mục (retry):', error);
+        Alert.alert('Thông báo', 'Không thể tải danh sách danh mục. Sử dụng danh sách mặc định.');
+        setCategories(defaultCategories);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+    fetchCategories();
   };
 
   return (
@@ -133,34 +211,90 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
             value={quantity}
             onChangeText={setQuantity}
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Mã danh mục"
-            value={categoryCode}
-            onChangeText={setCategoryCode}
-          />
+          {isLoadingCategories ? (
+            <Text style={styles.loadingText}>Đang tải danh mục...</Text>
+          ) : categories.length === defaultCategories.length && categories.every((cat, i) => cat.MaDanhMuc === defaultCategories[i].MaDanhMuc) ? (
+            <View>
+              <Text style={styles.errorText}>Không tải được danh mục. Dùng danh sách mặc định.</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={retryFetchCategories}
+              >
+                <Text style={styles.buttonText}>Thử lại</Text>
+              </TouchableOpacity>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={categoryCode}
+                  onValueChange={(itemValue) => setCategoryCode(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Chọn danh mục" value="" />
+                  {categories.map((category) => (
+                    <Picker.Item
+                      key={category.MaDanhMuc || Math.random().toString()}
+                      label={category.Ten || 'Không xác định'}
+                      value={category.MaDanhMuc?.toString() || ''}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={categoryCode}
+                onValueChange={(itemValue) => setCategoryCode(itemValue)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Chọn danh mục" value="" />
+                {categories.map((category) => (
+                  <Picker.Item
+                    key={category.MaDanhMuc || Math.random().toString()}
+                    label={category.Ten || 'Không xác định'}
+                    value={category.MaDanhMuc?.toString() || ''}
+                  />
+                ))}
+              </Picker>
+            </View>
+          )}
           {image ? (
-            <Image source={{ uri: image }} style={styles.previewImage} resizeMode="contain" />
+            <Image
+              source={{ uri: image }}
+              style={styles.previewImage}
+              resizeMode="contain"
+              onError={(e) => console.log('Lỗi hiển thị ảnh:', e.nativeEvent.error)}
+            />
           ) : (
             <Text style={styles.noImageText}>Chưa chọn hình ảnh</Text>
           )}
           <TouchableOpacity onPress={chooseImage} style={styles.chooseImageButton}>
             <Text style={styles.chooseImageText}>Chọn hình ảnh</Text>
           </TouchableOpacity>
-          {/* Thêm biến thể */}
           <Text style={styles.modalTitle}>Thêm chi tiết sản phẩm</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Size (S, M, L, XL)"
-            value={newVariant.Size}
-            onChangeText={(text) => setNewVariant({ ...newVariant, Size: text })}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Màu sắc"
-            value={newVariant.MauSac}
-            onChangeText={(text) => setNewVariant({ ...newVariant, MauSac: text })}
-          />
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={newVariant.Size}
+              onValueChange={(itemValue) => setNewVariant({ ...newVariant, Size: itemValue })}
+              style={styles.picker}
+            >
+              <Picker.Item label="Chọn size" value="" />
+              {sizeOptions.map((size) => (
+                <Picker.Item key={size} label={size} value={size} />
+              ))}
+            </Picker>
+          </View>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={newVariant.MauSac}
+              onValueChange={(itemValue) => setNewVariant({ ...newVariant, MauSac: itemValue })}
+              style={styles.picker}
+            >
+              <Picker.Item label="Chọn màu sắc" value="" />
+              {colorOptions.map((color) => (
+                <Picker.Item key={color} label={color} value={color} />
+              ))}
+            </Picker>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Giá biến thể"
@@ -176,9 +310,8 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
             onChangeText={(text) => setNewVariant({ ...newVariant, SoLuong: text })}
           />
           <TouchableOpacity style={styles.chooseImageButton} onPress={addVariant}>
-            <Text style={styles.chooseImageText}>Thêm chi tiết sản phẩm </Text>
+            <Text style={styles.chooseImageText}>Thêm chi tiết sản phẩm</Text>
           </TouchableOpacity>
-          {/* Hiển thị danh sách biến thể */}
           <FlatList
             data={variants}
             keyExtractor={(item) => item.MaChiTietSanPham.toString()}
@@ -195,7 +328,7 @@ const ProductModal = ({ visible, onClose, onSave, editingProduct }) => {
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
               <Text style={styles.buttonText}>Hủy</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleModalSave}>
               <Text style={styles.buttonText}>Lưu</Text>
             </TouchableOpacity>
           </View>

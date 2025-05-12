@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productControllers = require('../Controllers/productControllers.js');
 
-// Gọi controller vào các route tương ứng
+
 router.post('/', productControllers.addProduct);
 router.get('/', productControllers.getAllProducts);
 router.get('/:MaSanPham', productControllers.getProductById);
