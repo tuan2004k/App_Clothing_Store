@@ -4,10 +4,10 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 const Tabs = ({ categories, activeTab, setActiveTab }) => {
   // Nếu categories không phải là mảng, trả về mảng rỗng
   const safeCategories = Array.isArray(categories) ? categories : [];
-
+  
   // Log để kiểm tra dữ liệu categories
   console.log('Danh mục trong Tabs:', safeCategories);
-
+  
   return (
     <ScrollView
       horizontal
@@ -20,7 +20,10 @@ const Tabs = ({ categories, activeTab, setActiveTab }) => {
             <TouchableOpacity
               key={category.MaDanhMuc || category.Ten}
               onPress={() => setActiveTab(category.Ten)}
-              style={styles.tabWrapper}
+              style={[
+                styles.tabWrapper,
+                category.Ten === activeTab && styles.activeTabWrapper
+              ]}
             >
               <Text
                 style={[styles.tab, category.Ten === activeTab && styles.activeTab]}
@@ -40,35 +43,51 @@ const Tabs = ({ categories, activeTab, setActiveTab }) => {
 
 const styles = StyleSheet.create({
   tabContainer: {
-    maxHeight: 60, 
+    maxHeight: 54,
+    marginHorizontal: 10,
+    borderRadius: 20,
+    
+
+    // backgroundColor: '#FAFAFA',
   },
   tabs: {
     flexDirection: 'row',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    // paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#8bc2ec',
   },
   tabWrapper: {
     alignItems: 'center',
-    marginHorizontal: 10, // Khoảng cách giữa các tab
-    paddingVertical: 5,
+    marginHorizontal: 3,
+    paddingVertical: 6,
     paddingHorizontal: 10,
+    borderRadius: 5,
+    backgroundColor: '#F5F5F5',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+  activeTabWrapper: {
+    backgroundColor: '#F0F5FF',
   },
   tab: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 15,
+    color: '#555555',
     fontWeight: '500',
   },
   activeTab: {
-    color: '#6200EE',
+    color: '#3D5AFE',
     fontWeight: 'bold',
   },
   underline: {
-    marginTop: 5,
-    width: 30,
+    marginTop: 4,
+    width: '80%',
     height: 2,
-    backgroundColor: '#6200EE',
+    backgroundColor: '#3D5AFE',
+    borderRadius: 1,
   },
   noTabs: {
     fontSize: 16,

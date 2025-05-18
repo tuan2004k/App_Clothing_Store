@@ -16,6 +16,8 @@ const detailordersRoutes = require('./backEnd/Routes/detailodersRoutes');
 const checkoutRoutes = require('./backEnd/Routes/checkoutRoutes');
 const feedbackRoutes = require('./backEnd/Routes/feedbackRoutes');
 const favoriteRoutes = require('./backEnd/Routes/favoriteRoutes');
+const adminRoutes = require('./backEnd/Routes/adminRoutes');
+
 
 
 
@@ -39,6 +41,7 @@ app.use('/api/ChiTietDonHang', detailordersRoutes);
 app.use('/api/ThanhToan', checkoutRoutes);
 app.use('/api/DanhGia', feedbackRoutes);
 app.use('/api/YeuThich', favoriteRoutes);
+app.use('/api/Admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send(' API Server is running!');

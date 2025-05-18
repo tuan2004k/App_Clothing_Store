@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = "http://172.16.17.135:5000/api/NguoiDung";
+const API_URL = "http://192.168.1.4:5000/api/NguoiDung";
+// 192.168.1.4
 
 // Đăng ký
 export const registerUser = async (userData) => {
@@ -62,5 +63,6 @@ export const deleteUser = async (MaNguoiDung) => {
         throw error.response?.data || error;
     }
 };
+// Hiển thị danh sách người dùng
 
 

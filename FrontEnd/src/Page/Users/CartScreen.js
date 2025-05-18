@@ -17,26 +17,54 @@ import {
   removeFromCart,
   clearCart,
 } from '../../API/apicart';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Thêm import
 
 const CartScreen = ({ route, navigation }) => {
-  const { MaNguoiDung } = route.params || { MaNguoiDung: 1 }; // Mặc định MaNguoiDung = 1
   const [cartItems, setCartItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState({});
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [MaNguoiDung, setMaNguoiDung] = useState(null); // State để lưu MaNguoiDung
 
   useEffect(() => {
-    fetchCart();
-  }, []);
+    // Lấy MaNguoiDung từ localStorage khi component mount
+    const getUserIdFromStorage = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('MaNguoiDung');
+        if (storedUserId) {
+          setMaNguoiDung(parseInt(storedUserId, 10)); // Chuyển đổi sang số nguyên
+        } else {
+          // Nếu không có trong localStorage, dùng route.params hoặc mặc định
+          const userIdFromParams = route.params?.MaNguoiDung;
+          if (userIdFromParams) {
+            setMaNguoiDung(userIdFromParams);
+            await AsyncStorage.setItem('MaNguoiDung', userIdFromParams.toString());
+          } else {
+            setMaNguoiDung(1); // Mặc định nếu không có dữ liệu
+            await AsyncStorage.setItem('MaNguoiDung', '1');
+          }
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy MaNguoiDung từ localStorage:', error);
+        setMaNguoiDung(1); // Fallback nếu có lỗi
+        await AsyncStorage.setItem('MaNguoiDung', '1');
+      }
+    };
+
+    getUserIdFromStorage().then(() => {
+      if (MaNguoiDung) fetchCart(); // Chỉ gọi fetchCart khi có MaNguoiDung
+    });
+  }, [MaNguoiDung, route.params?.MaNguoiDung]);
 
   const fetchCart = async () => {
+    if (!MaNguoiDung) return; // Đảm bảo MaNguoiDung đã được thiết lập
     try {
       setLoading(true);
       const data = await getCart(MaNguoiDung);
       setCartItems(data);
 
       const initialSelected = {};
-      data.forEach(item => {
+      data.forEach((item) => {
         initialSelected[item.MaChiTietSanPham] = true;
       });
       setSelectedItems(initialSelected);
@@ -69,10 +97,10 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const handleToggleSelectAll = () => {
-    const allSelected = Object.values(selectedItems).every(value => value);
+    const allSelected = Object.values(selectedItems).every((value) => value);
     const newSelectedItems = {};
 
-    cartItems.forEach(item => {
+    cartItems.forEach((item) => {
       newSelectedItems[item.MaChiTietSanPham] = !allSelected;
     });
 
@@ -85,9 +113,10 @@ const CartScreen = ({ route, navigation }) => {
       Alert.alert('Cảnh báo', 'Số lượng phải lớn hơn 0.');
       return;
     }
+    if (!MaNguoiDung) return;
     try {
       await updateCart(MaNguoiDung, MaChiTietSanPham, SoLuong);
-      const updatedItems = cartItems.map(item =>
+      const updatedItems = cartItems.map((item) =>
         item.MaChiTietSanPham === MaChiTietSanPham ? { ...item, SoLuong } : item
       );
       setCartItems(updatedItems);
@@ -98,9 +127,12 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const handleRemoveItem = async (MaChiTietSanPham) => {
+    if (!MaNguoiDung) return;
     try {
       await removeFromCart(MaNguoiDung, MaChiTietSanPham);
-      const updatedItems = cartItems.filter(item => item.MaChiTietSanPham !== MaChiTietSanPham);
+      const updatedItems = cartItems.filter(
+        (item) => item.MaChiTietSanPham !== MaChiTietSanPham
+      );
       const newSelectedItems = { ...selectedItems };
       delete newSelectedItems[MaChiTietSanPham];
       setCartItems(updatedItems);
@@ -112,14 +144,16 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const handleCheckout = () => {
-    const selectedProducts = cartItems.filter(item => selectedItems[item.MaChiTietSanPham]);
+    const selectedProducts = cartItems.filter(
+      (item) => selectedItems[item.MaChiTietSanPham]
+    );
 
     if (selectedProducts.length === 0) {
       Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một sản phẩm để thanh toán.');
       return;
     }
 
-    // Chuyển hướng đến CheckoutScreen với dữ liệu
+    if (!MaNguoiDung) return;
     navigation.navigate('CheckoutScreen', {
       MaNguoiDung,
       selectedProducts,
@@ -128,13 +162,16 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const handleRemoveSelected = async () => {
-    const selectedProductIds = Object.keys(selectedItems).filter(id => selectedItems[id]);
+    const selectedProductIds = Object.keys(selectedItems).filter(
+      (id) => selectedItems[id]
+    );
 
     if (selectedProductIds.length === 0) {
       Alert.alert('Thông báo', 'Vui lòng chọn ít nhất một sản phẩm để xóa.');
       return;
     }
 
+    if (!MaNguoiDung) return;
     Alert.alert(
       'Xác nhận',
       'Bạn có chắc chắn muốn xóa các sản phẩm đã chọn?',
@@ -162,8 +199,11 @@ const CartScreen = ({ route, navigation }) => {
   };
 
   const areAllSelected = () => {
-    return cartItems.length > 0 && Object.keys(selectedItems).length > 0 &&
-           cartItems.every(item => selectedItems[item.MaChiTietSanPham]);
+    return (
+      cartItems.length > 0 &&
+      Object.keys(selectedItems).length > 0 &&
+      cartItems.every((item) => selectedItems[item.MaChiTietSanPham])
+    );
   };
 
   if (loading) {
@@ -180,7 +220,7 @@ const CartScreen = ({ route, navigation }) => {
       <Text style={styles.emptyText}>Giỏ hàng trống</Text>
       <TouchableOpacity
         style={styles.shopButton}
-        onPress={() => navigation.navigate('Home')}
+        onPress={() => navigation.navigate('Users')}
       >
         <Text style={styles.shopButtonText}>Mua sắm ngay</Text>
       </TouchableOpacity>
@@ -201,13 +241,13 @@ const CartScreen = ({ route, navigation }) => {
           style={styles.removeSelectedButton}
           onPress={handleRemoveSelected}
         >
-          <Text style={styles.removeSelectedText}></Text>
+          <Text style={styles.removeSelectedText}>Xóa</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
         data={cartItems}
-        keyExtractor={item => item.MaGioHang.toString()}
+        keyExtractor={(item) => item.MaGioHang.toString()}
         renderItem={({ item }) => (
           <View style={styles.itemContainer}>
             <View style={styles.checkboxContainer}>
@@ -220,7 +260,7 @@ const CartScreen = ({ route, navigation }) => {
             <Image
               source={{ uri: item.HinhAnh || 'https://via.placeholder.com/80' }}
               style={styles.image}
-              defaultSource={require('../../../../assets/logo.png')}
+              defaultSource={require('../../../../assets/AO LEN LOUIS VUITON.webp')}
             />
             <View style={styles.details}>
               <Text style={styles.name} numberOfLines={2}>
@@ -263,7 +303,6 @@ const CartScreen = ({ route, navigation }) => {
           </View>
         )}
         contentContainerStyle={styles.flatListContent}
-        // Đảm bảo có đủ khoảng trống ở cuối để không bị che bởi phần total
         ListFooterComponent={<View style={styles.listFooterSpace} />}
       />
     </>
@@ -272,29 +311,24 @@ const CartScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.title}>Giỏ Hàng</Text>
-        
-        {/* Phần nội dung có thể cuộn */}
         <View style={styles.contentContainer}>
           {cartItems.length === 0 ? renderEmptyCart() : renderCartItems()}
         </View>
-        
-        {/* Phần cố định ở dưới */}
         {cartItems.length > 0 && (
           <View style={styles.fixedBottomContainer}>
             <View style={styles.totalInfo}>
               <Text style={styles.totalLabel}>
-                Tổng tiền ({cartItems.filter(item => selectedItems[item.MaChiTietSanPham]).length} sản phẩm):
+                Tổng tiền ({cartItems.filter((item) => selectedItems[item.MaChiTietSanPham]).length} sản phẩm):
               </Text>
               <Text style={styles.totalText}>{total.toLocaleString()} VNĐ</Text>
             </View>
             <TouchableOpacity
               style={[
                 styles.checkoutButton,
-                Object.values(selectedItems).some(v => v) ? {} : styles.disabledButton,
+                Object.values(selectedItems).some((v) => v) ? {} : styles.disabledButton,
               ]}
               onPress={handleCheckout}
-              disabled={!Object.values(selectedItems).some(v => v)}
+              disabled={!Object.values(selectedItems).some((v) => v)}
             >
               <Text style={styles.checkoutText}>Mua hàng</Text>
             </TouchableOpacity>
@@ -324,11 +358,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    margin: 16,
   },
   contentContainer: {
     flex: 1,
@@ -470,7 +499,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   listFooterSpace: {
-    height: 120, // Tạo khoảng trống ở cuối FlatList để không bị che bởi fixedBottomContainer
+    height: 120,
   },
   fixedBottomContainer: {
     position: 'absolute',

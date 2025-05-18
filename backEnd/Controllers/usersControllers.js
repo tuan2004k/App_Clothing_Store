@@ -117,12 +117,12 @@ exports.getAllUsers = async (req, res) => {
 
 // 4. Lấy chi tiết người dùng theo ID
 exports.getUserById = async (req, res) => {
-    const { id } = req.params;
-    if (isNaN(id)) {
+    const { MaNguoiDung } = req.params;
+    if (isNaN(MaNguoiDung)) {
         return res.status(400).json({ error: "ID không hợp lệ" });
     }
     try {
-        const [users] = await db.query("SELECT * FROM NguoiDung WHERE MaNguoiDung = ?", [parseInt(id)]);
+        const [users] = await db.query("SELECT * FROM NguoiDung WHERE MaNguoiDung = ?", [parseInt(MaNguoiDung)]);
         if (users.length === 0) {
             return res.status(404).json({ message: "Không tìm thấy người dùng" });
         }
@@ -135,20 +135,68 @@ exports.getUserById = async (req, res) => {
 // 5. Cập nhật người dùng
 exports.updateUser = async (req, res) => {
     const { id } = req.params;
-    const { Ten, Email, MatKhau, VaiTro } = req.body;
+    console.log('🏷️ ID nhận được:', id);
+    console.log('📦 Body nhận được:', req.body);
+
     try {
-        let hashedPassword;
-        if (MatKhau) {
-            hashedPassword = await bcrypt.hash(MatKhau, 10);
+        // Kiểm tra user tồn tại trước
+        const [user] = await db.query('SELECT * FROM NguoiDung WHERE MaNguoiDung = ?', [id]);
+        if (user.length === 0) {
+            console.log('❌ User không tồn tại');
+            return res.status(404).json({ error: 'Không tìm thấy người dùng' });
         }
-        const query = MatKhau ?
-            'UPDATE NguoiDung SET Ten = ?, Email = ?, MatKhau = ?, VaiTro = ? WHERE MaNguoiDung = ?'
-            : 'UPDATE NguoiDung SET Ten = ?, Email = ?, VaiTro = ? WHERE MaNguoiDung = ?';
-        const params = MatKhau ? [Ten, Email, hashedPassword, VaiTro, id] : [Ten, Email, VaiTro, id];
-        await db.query(query, params);
-        res.json({ message: 'Người dùng đã được cập nhật thành công' });
+
+        // Xây dựng câu lệnh SQL động
+        const updates = [];
+        const params = [];
+
+        // Danh sách trường có thể cập nhật
+        const fields = ['Ten', 'Email', 'SoDienThoai', 'DiaChi', 'AnhDaiDien', 'VaiTro'];
+
+        fields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updates.push(`${field} = ?`);
+                params.push(req.body[field]);
+            }
+        });
+
+        // Xử lý mật khẩu riêng (nếu có)
+        if (req.body.MatKhau) {
+            const hashedPassword = await bcrypt.hash(req.body.MatKhau, 10);
+            updates.push('MatKhau = ?');
+            params.push(hashedPassword);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'Không có trường nào để cập nhật' });
+        }
+
+        const query = `UPDATE NguoiDung SET ${updates.join(', ')} WHERE MaNguoiDung = ?`;
+        params.push(id);
+
+        console.log('🔍 Query cuối cùng:', query);
+        console.log('📌 Params:', params);
+
+        const [result] = await db.query(query, params);
+        console.log('✅ Kết quả update:', result);
+
+        if (result.affectedRows > 0) {
+            // Lấy lại thông tin mới nhất
+            const [updatedUser] = await db.query('SELECT * FROM NguoiDung WHERE MaNguoiDung = ?', [id]);
+            res.json({
+                message: 'Cập nhật thành công',
+                user: updatedUser[0]
+            });
+        } else {
+            res.status(500).json({ error: 'Cập nhật không thành công' });
+        }
     } catch (error) {
-        res.status(500).json({ error: "Lỗi cập nhật người dùng thất bại", details: error.message });
+        console.error('💥 Lỗi chi tiết:', error);
+        res.status(500).json({
+            error: 'Lỗi server',
+            details: error.message,
+            sqlError: error.sqlMessage // Lỗi từ MySQL nếu có
+        });
     }
 };
 

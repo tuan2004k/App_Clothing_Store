@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, SafeAreaView } from 'react-native';
 import ProductCard from '../../componentsUser.js/ProductCard';
 import Tabs from '../../componentsUser.js/Tabs';
 import { getAllProducts, getProductsByCategory } from '../../API/apiproduct';
 import { getAllCategories } from '../../API/apicategory';
 import SearchBar from '../../Common/SearchBar';
 import { useNavigation } from '@react-navigation/native';
+import BottomTab from '../../componentsUser.js/BottomTab';
 
 export default function DashBoardScreen() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [activeTab, setActiveTab] = useState('Tất cả'); // Mặc định là "Tất cả"
+  const [activeTab, setActiveTab] = useState('Tất cả');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigation = useNavigation();
@@ -18,7 +19,6 @@ export default function DashBoardScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Lấy danh sách danh mục
         let categoriesData;
         try {
           categoriesData = await getAllCategories();
@@ -31,11 +31,9 @@ export default function DashBoardScreen() {
           categoriesData = [];
         }
 
-        // Thêm danh mục "Tất cả" vào đầu danh sách
         const allCategory = { MaDanhMuc: null, Ten: 'Tất cả' };
         setCategories([allCategory, ...categoriesData]);
 
-        // Lấy tất cả sản phẩm
         const productsData = await getAllProducts();
         console.log('Sản phẩm từ API:', productsData);
         setProducts(productsData);
@@ -97,43 +95,63 @@ export default function DashBoardScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <SearchBar searchQuery="" onSearch={() => { }} placeholder="Tìm kiếm" style={styles.searchBar} />
-      <Tabs categories={categories} activeTab={activeTab} setActiveTab={handleTabChange} />
-      {products.length > 0 ? (
-        <FlatList
-          data={products}
-          renderItem={({ item }) => (
-            <ProductCard
-              product={{
-                id: item.MaSanPham,
-                name: item.Ten,
-                price: `${item.Gia} VNĐ`,
-                image: item.HinhAnh,
-              }}
-              onPress={handleProductPress}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <SearchBar searchQuery="" onSearch={() => {}} placeholder="Tìm kiếm" style={styles.searchBar} />
+        <Tabs categories={categories} activeTab={activeTab} setActiveTab={handleTabChange} />
+        <View style={styles.content}>
+          {products.length > 0 ? (
+            <FlatList
+              data={products}
+              renderItem={({ item }) => (
+                <ProductCard
+                  product={{
+                    id: item.MaSanPham,
+                    name: item.Ten,
+                    price: `${item.Gia} VNĐ`,
+                    image: item.HinhAnh,
+                  }}
+                  onPress={handleProductPress}
+                />
+              )}
+              keyExtractor={(item, index) => (item.MaSanPham ? item.MaSanPham.toString() : index.toString())}
+              numColumns={2}
+              contentContainerStyle={styles.productList}
             />
+          ) : (
+            <Text style={styles.noProducts}>Không có sản phẩm nào</Text>
           )}
-          keyExtractor={(item, index) => (item.MaSanPham ? item.MaSanPham.toString() : index.toString())}
-          numColumns={2}
-          contentContainerStyle={styles.productList}
-        />
-      ) : (
-        <Text style={styles.noProducts}>Không có sản phẩm nào</Text>
-      )}
-    </View>
+        </View>
+        <BottomTab  />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    backgroundColor: '#FAFAFA',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    paddingTop: 50,
+  },
+  searchBar: {
+    marginTop: 10,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    width: '100%', // Đảm bảo chiếm toàn bộ chiều rộng
+  },
+  content: {
+    flex: 1, // Đảm bảo FlatList lấp đầy không gian còn lại
   },
   productList: {
     padding: 8,
+    paddingBottom: 70, // Tăng paddingBottom để đảm bảo không gian cho BottomTab
   },
   noProducts: {
     fontSize: 16,
@@ -144,8 +162,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'red',
     textAlign: 'center',
-  },
-  searchBar: {
-    marginBottom: 10,
   },
 });

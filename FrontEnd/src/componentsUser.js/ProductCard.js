@@ -1,10 +1,78 @@
-// componentsUser.js/ProductCard.js
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFavoritesByUser, addFavorite, deleteFavorite } from '../API/apifavorite';
 
-const ProductCard = ({ product, onPress }) => {
+const ProductCard = ({ product, onPress, navigation }) => {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [MaNguoiDung, setMaNguoiDung] = useState(null);
+  const [favoriteId, setFavoriteId] = useState(null);
+
+  // Lấy MaNguoiDung từ AsyncStorage và kiểm tra trạng thái yêu thích ban đầu
+  useEffect(() => {
+    const fetchUserAndFavorites = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          setMaNguoiDung(parsedUser.id);
+          console.log('MaNguoiDung:', parsedUser.id); // Debug MaNguoiDung
+
+          const favorites = await getFavoritesByUser(parsedUser.id);
+          console.log('Danh sách yêu thích:', favorites); // Debug danh sách yêu thích
+          const favoriteProduct = favorites.find(fav => fav.MaSanPham === product.id);
+          if (favoriteProduct) {
+            setIsFavorite(true);
+            setFavoriteId(favoriteProduct.MaYeuThich);
+            console.log('Sản phẩm đã yêu thích, MaYeuThich:', favoriteProduct.MaYeuThich);
+          } else {
+            console.log('Sản phẩm chưa yêu thích');
+          }
+        }
+      } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu người dùng hoặc yêu thích:', error);
+      }
+    };
+
+    fetchUserAndFavorites();
+  }, [product.id]);
+
+  // Xử lý nhấn biểu tượng yêu thích
+  const handleFavoritePress = async () => {
+    if (!MaNguoiDung) {
+      Alert.alert('Yêu cầu đăng nhập', 'Vui lòng đăng nhập để thêm sản phẩm vào yêu thích.', [
+        { text: 'Đăng nhập', onPress: () => navigation.navigate('LoginScreen') },
+        { text: 'Hủy', style: 'cancel' },
+      ]);
+      return;
+    }
+
+    try {
+      if (isFavorite) {
+        // Xóa khỏi danh sách yêu thích
+        await deleteFavorite(favoriteId);
+        setIsFavorite(false);
+        setFavoriteId(null);
+        console.log('Đã xóa yêu thích, MaYeuThich:', favoriteId);
+        Alert.alert('Thành công', 'Đã xóa sản phẩm khỏi danh sách yêu thích.');
+      } else {
+        // Thêm vào danh sách yêu thích
+        const response = await addFavorite(MaNguoiDung, product.id);
+        console.log('Response từ addFavorite:', response); // Debug response
+        if (response && response.MaYeuThich) {
+          setIsFavorite(true);
+          setFavoriteId(response.MaYeuThich);
+          Alert.alert('Thành công', 'Đã thêm sản phẩm vào danh sách yêu thích.');
+        } else {
+          throw new Error('Không nhận được MaYeuThich từ response');
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi xử lý yêu thích:', error);
+      Alert.alert('Lỗi', 'Không thể cập nhật danh sách yêu thích.');
+    }
+  };
 
   if (!product) {
     return null;
@@ -18,10 +86,7 @@ const ProductCard = ({ product, onPress }) => {
           style={styles.image}
           resizeMode="cover"
         />
-        <TouchableOpacity
-          style={styles.favoriteIcon}
-          onPress={() => setIsFavorite(!isFavorite)}
-        >
+        <TouchableOpacity style={styles.favoriteIcon} onPress={handleFavoritePress}>
           <Ionicons
             name={isFavorite ? 'heart' : 'heart-outline'}
             size={24}
