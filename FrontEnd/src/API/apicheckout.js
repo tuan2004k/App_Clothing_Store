@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Lưu ý: KHÔNG có dấu / cuối cùng
-const API_URL = 'http://192.168.1.4:5000/api/ThanhToan';
+const API_URL = 'http://172.16.16.189:5000/api/ThanhToan';
 
 // Cấu hình chung cho axios
 axios.defaults.headers.post['Content-Type'] = 'application/json';

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://192.168.1.4:5000/api/SanPham"; // Thay bằng URL API backend của bạn
+const API_URL = "http://172.16.16.189:5000/api/SanPham"; // Thay bằng URL API backend của bạn
 
 // 🟢 Lấy danh sách sản phẩm
 export const getAllProducts = async () => {

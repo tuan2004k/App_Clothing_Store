@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Cấu hình base URL (đảm bảo khớp với backend của bạn)
-const API_URL = 'http://192.168.1.4:5000/api/DonHang';
+const API_URL = 'http://172.16.16.189:5000/api/DonHang';
 
 // Tạo instance Axios với cấu hình mặc định
 const axiosInstance = axios.create({

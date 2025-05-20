@@ -1,7 +1,7 @@
 // src/api/apiCategory.js
 import axios from "axios";
 
-const API_URL = "http://192.168.1.4:5000/api/DanhMuc"; 
+const API_URL = "http://172.16.16.189:5000/api/DanhMuc"; 
 
 export const getAllCategories = async () => {
     try {
